@@ -18,7 +18,7 @@ import java.util.Map;
 @Path("/service")
 public class Service {
     private static final ObjectMapper objectMapper = new ObjectMapper();
-    private static final HashMap<Long, HashMap> properties = new HashMap<>(1_00_000);
+    private static final HashMap<Long, HashMap<String, Object>> properties = new HashMap<>(1_00_000);
     private static final HashMap<String, Long> roots = new HashMap<>();
 
     @GET
@@ -39,7 +39,7 @@ public class Service {
 
         try (Transaction tx = db.beginTx()) {
             for (Node node : db.getAllNodes()) {
-                properties.put(node.getId(), (HashMap) node.getAllProperties());
+                properties.put(node.getId(), (HashMap<String, Object>) node.getAllProperties());
                 node.getPropertyKeys();
                 for (Relationship relationship : node.getRelationships()) {
                     relationship.getPropertyKeys();
@@ -94,7 +94,7 @@ public class Service {
     private void doStuffRecursively(Node node, JsonGenerator jg, int depth, int maxDepth) throws IOException {
         // Write our object but don't close it since we will include Promotions and children
         jg.writeStartObject();
-        for (Map.Entry<String, Object> entry : ((HashMap<String, Object>) properties.get(node.getId())).entrySet()) {
+        for (Map.Entry<String, Object> entry : properties.get(node.getId()).entrySet()) {
             jg.writeFieldName(entry.getKey());
             jg.writeObject(entry.getValue());
         }
@@ -126,7 +126,7 @@ public class Service {
         if (properties.isEmpty()) {
             try (Transaction tx = db.beginTx()) {
                 for (Node node : db.getAllNodes()) {
-                    properties.put(node.getId(), (HashMap) node.getAllProperties());
+                    properties.put(node.getId(), (HashMap<String, Object>) node.getAllProperties());
                 }
                 tx.success();
             }

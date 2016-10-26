@@ -2,7 +2,7 @@ package com.maxdemarzi;
 
 import org.neo4j.graphdb.Label;
 
-public enum Labels implements Label {
+enum Labels implements Label {
     Item,
     Promotion
 }

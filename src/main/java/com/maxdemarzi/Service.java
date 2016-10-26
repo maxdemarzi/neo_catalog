@@ -78,7 +78,7 @@ public class Service {
                 }
                 // Start by sending the root at depth zero and maxdepth
                 if (root != null) {
-                    doStuffRecursively(root, jg, 0, maxDepth);
+                    getPropertiesAndChildrenRecursively(root, jg, 0, maxDepth);
                 }
 
                 tx.success();
@@ -91,7 +91,7 @@ public class Service {
         return Response.ok().entity(stream).type(MediaType.APPLICATION_JSON).build();
     }
 
-    private void doStuffRecursively(Node node, JsonGenerator jg, int depth, int maxDepth) throws IOException {
+    private void getPropertiesAndChildrenRecursively(Node node, JsonGenerator jg, int depth, int maxDepth) throws IOException {
         // Write our object but don't close it since we will include Promotions and children
         jg.writeStartObject();
         for (Map.Entry<String, Object> entry : properties.get(node.getId()).entrySet()) {
@@ -113,7 +113,7 @@ public class Service {
             // recursively do the same thing for every child node
             for (Relationship rel : node.getRelationships(RelationshipTypes.HAS_CHILD, Direction.OUTGOING)) {
                 Node nextNode = rel.getEndNode();
-                doStuffRecursively(nextNode, jg, depth, maxDepth);
+                getPropertiesAndChildrenRecursively(nextNode, jg, depth, maxDepth);
             }
         }
         // close out children and object
@@ -121,6 +121,51 @@ public class Service {
         jg.writeEndObject();
     }
 
+    @GET
+    @Path("/promotions/{id}")
+    @Produces({"application/json"})
+    public Response promotions(@PathParam("id") String id, @Context final GraphDatabaseService db) throws IOException {
+        // Since graph is so small, we're going to pre-load it into memory the first time this end point is called
+        loadPropertiesCache(db);
+        // We will stream our output so we don't build a big nested object or hashmap
+        StreamingOutput stream = os -> {
+            JsonGenerator jg = objectMapper.getJsonFactory().createJsonGenerator(os, JsonEncoding.UTF8);
+            // All Neo4j access requires a transaction
+            try (Transaction tx = db.beginTx()) {
+                // Let's find our item node
+                final Node item = db.findNode(Labels.Item, "id", id);
+
+                // Start by sending the item node
+                if (item != null) {
+                    jg.writeStartObject();
+                    jg.writeArrayFieldStart("promotions");
+                    getPromotionsRecursively(item, jg);
+                    jg.writeEndArray();
+                    jg.writeEndObject();
+                }
+
+                tx.success();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            jg.flush();
+            jg.close();
+        };
+        return Response.ok().entity(stream).type(MediaType.APPLICATION_JSON).build();
+    }
+
+    private void getPromotionsRecursively(Node node, JsonGenerator jg) throws IOException {
+        // add promotions by following the HAS_PROMOTION relationship
+        for (Relationship rel : node.getRelationships(RelationshipTypes.HAS_PROMOTION, Direction.OUTGOING)) {
+            Node promotion = rel.getEndNode();
+            jg.writeObject(properties.get(promotion.getId()));
+        }
+        // follow up the hiearchy to the parent node
+        Relationship pathUp = node.getSingleRelationship(RelationshipTypes.HAS_CHILD, Direction.INCOMING);
+        if (pathUp != null) {
+            getPromotionsRecursively(pathUp.getStartNode(), jg);
+        }
+    }
 
     private void loadPropertiesCache(@Context GraphDatabaseService db) {
         if (properties.isEmpty()) {

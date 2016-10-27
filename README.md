@@ -17,16 +17,16 @@ POC Catalog and Hiearchy for Neo4j
 
 5. Create some sample data (optional)
 
-        CREATE (root:Item {id:'0', name:'Root'})
-        CREATE (child1:Item {id:'1', name:'child1'})
-        CREATE (child11:Item {id:'11', name:'child11'})
-        CREATE (child12:Item {id:'12', name:'child12'})
-        CREATE (child2:Item {id:'2', name:'child2'})
-        CREATE (child21:Item {id:'21', name:'child21'})
-        CREATE (child211:Item {id:'211', name:'child211'})
-        CREATE (child3:Item {id:'3', name:'child3'})
-        CREATE (promotion211:Promotion {id:'p211', name:'promo 211'})
-        CREATE (promotion2:Promotion {id:'p2', name:'promo 2'})
+        CREATE (root:Item {id:'0', name:'Street Samurai Catalog'})
+        CREATE (child1:Item {id:'1', name:'Rifles'})
+        CREATE (child11:Item {id:'11', name:'Sniper'})
+        CREATE (child12:Item {id:'12', name:'Machine Gun'})
+        CREATE (child2:Item {id:'2', name:'Pistols'})
+        CREATE (child21:Item {id:'21', name:'Heavy'})
+        CREATE (child211:Item {id:'211', name:'Ares Predator'})
+        CREATE (child3:Item {id:'3', name:'Shotguns'})
+        CREATE (promotion211:Promotion {id:'p211', name:'Includes Ares Smartgun Link'})
+        CREATE (promotion2:Promotion {id:'p2', name:'Free Two-Day Shipping'})
         MERGE (root)-[:HAS_CHILD]->(child1)
         MERGE (child1)-[:HAS_CHILD]->(child11)
         MERGE (child1)-[:HAS_CHILD]->(child12)
@@ -51,7 +51,22 @@ POC Catalog and Hiearchy for Neo4j
         :GET /v1/service/catalog/0
         :GET /v1/service/catalog/0?depth=1
         :GET /v1/service/catalog/0?depth=2
-        
+               
 9. Get the promotions:
         
         :GET /v1/service/promotions/211
+        
+        
+Cypher queries:
+        
+        MATCH (parent:Item)-[:HAS_CHILD]->(item)
+        RETURN parent, COLLECT(item) AS children
+        
+        MATCH (start:Item {id:'211'}) <-[:HAS_CHILD*0..999]-(item)-[:HAS_PROMOTION]->(p)
+        RETURN {promotions: COLLECT(p)} AS promotions
+        
+        MATCH (start:Item {id:'211'}) <-[:HAS_CHILD*0..999]-(item)
+        WITH COLLECT (item) AS items
+        UNWIND items AS item 
+        MATCH (item)-[:HAS_PROMOTION]->(p)
+        RETURN {promotions: COLLECT(p)} AS promotions
